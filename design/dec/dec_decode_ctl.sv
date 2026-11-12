@@ -2491,6 +2491,9 @@ endmodule
 
 // 2) espresso -Dso -oeqntott legal.e | addassign -pre out. > legal_equation
 
+// Without the espresso binary, tools/espresso.py (PyEDA's copy of espresso) is a drop-in
+// replacement for step 2:  espresso.py coredecode.e > eq; addassign -in eq -prefix out.
+
 module dec_dec_ctl
    import veer_types::*;
 (
