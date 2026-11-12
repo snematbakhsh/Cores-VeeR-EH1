@@ -66,6 +66,9 @@ run_regression_test(){
     # Run the test
     mkdir -p ${DIR}
     make -j`nproc` -C ${DIR} -f $RV_ROOT/tools/Makefile verilator CONF_PARAMS="${PARAMS}" TEST=${NAME} 2>&1 | tee ${LOG}
+
+    # The testbench exits normally on TEST_FAILED too; only the log tells them apart
+    grep -q "TEST_PASSED" ${LOG}
 }
 
 # Example usage
