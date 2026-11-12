@@ -1,7 +1,7 @@
 # VeeR EH1 Core Overview
 
 This chapter provides a high-level overview of the VeeR EH1 core and core complex.
-VeeR EH1 is a machinemode (M-mode) only, 32-bit CPU core which supports RISC-V's integer (I), compressed instruction (C), multiplication and division (M), and instruction-fetch fence and CSR instructions (Z) extensions.
+VeeR EH1 is a machinemode (M-mode) only, 32-bit CPU core which supports RISC-V's integer (I), compressed instruction (C), multiplication and division (M), bit-manipulation (Zba, Zbb and Zbs, together B; see [Bit-Manipulation Extensions](bit-manipulation.md)), and instruction-fetch fence and CSR instructions (Z) extensions.
 The core is a 9-stage, dual-issue, superscalar, mostly in-order pipeline with some out-of-order execution capability.
 
 ## Features
@@ -9,6 +9,7 @@ The core is a 9-stage, dual-issue, superscalar, mostly in-order pipeline with so
 The VeeR EH1 core complex's feature set includes:
 
 - RV32IMC-compliant RISC-V core with branch predictor
+- Optional bit-manipulation extensions Zba, Zbb and Zbs (B), enabled by default
 - Optional 4-way set-associative instruction cache with parity or ECC protection
 - Optional instruction and data closely-coupled memories with ECC protection
 - Optional programmable interrupt controller supporting up to 255 external interrupts

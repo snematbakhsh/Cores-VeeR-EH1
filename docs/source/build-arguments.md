@@ -18,6 +18,14 @@ The rules for valid memory protection address (INST/DATA\_ACCESS\_ADDR*x*) and m
 - **Data**
   - Data Access Window*x* (*x* = 0..7) ▪ Enable (DATA\_ACCESS\_ENABLE*x*): 0,1 (*0 = window disabled; 1 = window enabled*) ▪ Base address (DATA\_ACCESS\_ADDR*x*): 0x0000\_0000..0xFFFF\_FFC0 (*see Section 17.1.1*) ▪ Mask (DATA\_ACCESS\_MASK*x*): 0x0000\_003F..0xFFFF\_FFFF (*see Section 17.1.1*)
 
+## Bit-Manipulation Build Arguments
+
+- Zba (RV\_BITMANIP\_ZBA): 0, 1 (*0 = Zba instructions are illegal; 1 = Zba enabled, default*)
+- Zbb (RV\_BITMANIP\_ZBB): 0, 1 (*0 = Zbb instructions are illegal; 1 = Zbb enabled, default*)
+- Zbs (RV\_BITMANIP\_ZBS): 0, 1 (*0 = Zbs instructions are illegal; 1 = Zbs enabled, default*)
+
+See [Bit-Manipulation Extensions](bit-manipulation.md).
+
 ## Core Memory-Related Build Arguments
 
 ### Core Memories and Memory-Mapped Register Blocks Alignment Rules

@@ -6,6 +6,7 @@
 
 intro
 core-overview
+bit-manipulation
 memory-map
 memory-error-protection
 internal-timers

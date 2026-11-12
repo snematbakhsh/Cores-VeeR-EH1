@@ -1,3 +1,18 @@
+# VeeR EH1 with Bit-Manipulation (Zba, Zbb, Zbs)
+
+A fork of [VeeR EH1](https://github.com/chipsalliance/Cores-VeeR-EH1) (CHIPS Alliance, originally Western Digital's SweRV EH1) that adds the RISC-V B extension: Zba + Zbb + Zbs, 29 instructions, single-cycle in all four ALUs. Upstream EH1 is RV32IMC only; its sibling EH2 has these extensions but is a different, larger core.
+
+- **4.7% fewer cycles, 2.5% smaller code** on Embench-IoT and CoreMark (LLVM, sifive-7 tuning, with libc and compiler builtins rebuilt for B)
+- **About 5.7k NAND2-equivalent gates** in all, and the longest ALU path is one LUT6 level shorter than stock
+- **Each extension can be configured out**, and code that doesn't use them runs cycle-for-cycle as on stock
+- **Verified** against a reference model cross-checked with QEMU, plus all upstream regression tests
+
+Details: [implementation and performance report](docs/bitmanip-performance.md) · [Bit-Manipulation Extensions](docs/source/bit-manipulation.md) chapter. Based on upstream commit `d04b1c7`; the changes are distributed under the same [Apache-2.0](LICENSE) license as the original.
+
+*The original VeeR EH1 README follows.*
+
+---
+
 # VeeR EH1 RISC-V Core
 
 This repository contains the VeeR EH1 design RTL.

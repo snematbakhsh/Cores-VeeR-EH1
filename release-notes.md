@@ -1,5 +1,17 @@
 # Release notes
 
+## Unreleased
+
+* Added the RISC-V bit-manipulation extensions Zba, Zbb and Zbs (B), RV32, single-cycle in all
+  four ALUs. Each can be removed with -set=bitmanip_zba=0 / bitmanip_zbb=0 / bitmanip_zbs=0.
+  misa reports B when all three are configured. See the Bit-Manipulation Extensions chapter.
+* The ALU's three shifters are replaced by one funnel shifter (also used for rotates and bext),
+  and the less-than compare for branches/slt is taken from the adder carry-out alone.
+* New self-checking tests bitmanip and bitmanip_random (generator: tools/gen_bitmanip_tests.py);
+  the regression workflow now fails a test whose log lacks TEST_PASSED.
+* tools/espresso.py: PyEDA-based replacement for the espresso binary when regenerating
+  the decoder equations.
+
 ## 1.9
 
 * Removed unused scan_mode input from dmi_wrapper (PR#89)
