@@ -280,9 +280,62 @@ string mn;
     return $sformatf("%s%s,%0d(%s) [%h]", mn, abi_reg[opcode[24:20]], imm, abi_reg[opcode[19:15]], imm+gpr[tid][opcode[19:15]]);
 endfunction
 
+// Zba/Zbb/Zbs; returns "" for anything else
+function string dasm32_bm( input[31:0] opcode);
+string mn;
+bit    unary;
+    unary = 0;
+    mn = "";
+    if (opcode[6:0] == 7'b0010011) begin
+        casez ({opcode[31:20], opcode[14:12]})
+        {12'h600, 3'b001}: begin mn = "clz     "; unary = 1; end
+        {12'h601, 3'b001}: begin mn = "ctz     "; unary = 1; end
+        {12'h602, 3'b001}: begin mn = "cpop    "; unary = 1; end
+        {12'h604, 3'b001}: begin mn = "sext.b  "; unary = 1; end
+        {12'h605, 3'b001}: begin mn = "sext.h  "; unary = 1; end
+        {12'h287, 3'b101}: begin mn = "orc.b   "; unary = 1; end
+        {12'h698, 3'b101}: begin mn = "rev8    "; unary = 1; end
+        {12'b0110000?????, 3'b101}: mn = "rori    ";
+        {12'b0100100?????, 3'b001}: mn = "bclri   ";
+        {12'b0100100?????, 3'b101}: mn = "bexti   ";
+        {12'b0110100?????, 3'b001}: mn = "binvi   ";
+        {12'b0010100?????, 3'b001}: mn = "bseti   ";
+        default: return "";
+        endcase
+        if (unary) return $sformatf("%s%s,%s", mn, abi_reg[opcode[11:7]], abi_reg[opcode[19:15]]);
+        return $sformatf("%s%s,%s,%0d", mn, abi_reg[opcode[11:7]], abi_reg[opcode[19:15]], opcode[24:20]);
+    end
+    if (opcode[6:0] == 7'b0110011) begin
+        if (opcode[31:20] == 12'h080 && opcode[14:12] == 3'b100)
+            return $sformatf("zext.h  %s,%s", abi_reg[opcode[11:7]], abi_reg[opcode[19:15]]);
+        case ({opcode[31:25], opcode[14:12]})
+        {7'b0010000, 3'd2}: mn = "sh1add  ";
+        {7'b0010000, 3'd4}: mn = "sh2add  ";
+        {7'b0010000, 3'd6}: mn = "sh3add  ";
+        {7'b0100000, 3'd7}: mn = "andn    ";
+        {7'b0100000, 3'd6}: mn = "orn     ";
+        {7'b0100000, 3'd4}: mn = "xnor    ";
+        {7'b0000101, 3'd4}: mn = "min     ";
+        {7'b0000101, 3'd5}: mn = "minu    ";
+        {7'b0000101, 3'd6}: mn = "max     ";
+        {7'b0000101, 3'd7}: mn = "maxu    ";
+        {7'b0110000, 3'd1}: mn = "rol     ";
+        {7'b0110000, 3'd5}: mn = "ror     ";
+        {7'b0100100, 3'd1}: mn = "bclr    ";
+        {7'b0100100, 3'd5}: mn = "bext    ";
+        {7'b0110100, 3'd1}: mn = "binv    ";
+        {7'b0010100, 3'd1}: mn = "bset    ";
+        default: return "";
+        endcase
+        return $sformatf("%s%s,%s,%s", mn, abi_reg[opcode[11:7]], abi_reg[opcode[19:15]], abi_reg[opcode[24:20]]);
+    end
+    return "";
+endfunction
 function string dasm32_ai( input[31:0] opcode);
 int imm;
 string mn;
+    mn = dasm32_bm(opcode);
+    if (mn != "") return mn;
     imm=0;
     imm[11:0] = opcode[31:20];
     if(opcode[31]) imm[31:12] = '1;
@@ -315,6 +368,8 @@ endfunction
 
 function string dasm32_ar( input[31:0] opcode);
 string mn;
+    mn = dasm32_bm(opcode);
+    if (mn != "") return mn;
     if(opcode[25])
         case(opcode[14:12])
         0: mn = "mul     ";
