@@ -116,6 +116,41 @@ divu =       [0000001..........101.....0110011]
 rem =        [0000001..........110.....0110011]
 remu =       [0000001..........111.....0110011]
 
+# Zba (address generation)
+sh1add =     [0010000..........010.....0110011]
+sh2add =     [0010000..........100.....0110011]
+sh3add =     [0010000..........110.....0110011]
+
+# Zbb (basic bit manipulation), RV32 encodings
+andn =       [0100000..........111.....0110011]
+orn =        [0100000..........110.....0110011]
+xnor =       [0100000..........100.....0110011]
+clz =        [011000000000.....001.....0010011]
+ctz =        [011000000001.....001.....0010011]
+cpop =       [011000000010.....001.....0010011]
+max =        [0000101..........110.....0110011]
+maxu =       [0000101..........111.....0110011]
+min =        [0000101..........100.....0110011]
+minu =       [0000101..........101.....0110011]
+sext_b =     [011000000100.....001.....0010011]
+sext_h =     [011000000101.....001.....0010011]
+zext_h =     [000010000000.....100.....0110011]
+rol =        [0110000..........001.....0110011]
+ror =        [0110000..........101.....0110011]
+rori =       [0110000..........101.....0010011]
+orc_b =      [001010000111.....101.....0010011]
+rev8 =       [011010011000.....101.....0010011]
+
+# Zbs (single-bit instructions), RV32 encodings
+bclr =       [0100100..........001.....0110011]
+bclri =      [0100100..........001.....0010011]
+bext =       [0100100..........101.....0110011]
+bexti =      [0100100..........101.....0010011]
+binv =       [0110100..........001.....0110011]
+binvi =      [0110100..........001.....0010011]
+bset =       [0010100..........001.....0110011]
+bseti =      [0010100..........001.....0010011]
+
 
 .input
 
@@ -207,6 +242,19 @@ rv32i = {
       fence
       fence_i
       pm_alu
+      zba
+      zbb
+      zbs
+      sh1add
+      sh2add
+      sh3add
+      negb
+      onehot
+      bext
+      rot
+      min
+      max
+      unary
 }
 
 .decode
@@ -246,6 +294,56 @@ rv32i[srli]  = { alu rs1 shimm5 rd srl pm_alu }
 
 rv32i[lui]    =  { alu imm20    rd lor pm_alu }
 rv32i[auipc]  =  { alu imm20 pc rd add pm_alu }
+
+# Bit manipulation. Everything runs in the ALUs (primary and secondary), single cycle.
+#
+# Zba: rs1 is shifted left by 1/2/3 on its way into the ALU operand flop, then a
+#      plain add. The shift is applied before the flop so the adder (and the branch
+#      compare/flush path that shares it) see no extra logic.
+rv32i[sh1add] = { alu zba rs1 rs2 rd add sh1add pm_alu }
+rv32i[sh2add] = { alu zba rs1 rs2 rd add sh2add pm_alu }
+rv32i[sh3add] = { alu zba rs1 rs2 rd add sh3add pm_alu }
+
+# Zbb logic-with-negate: the logic unit's B input is inverted (negb).
+rv32i[andn]   = { alu zbb rs1 rs2 rd land negb pm_alu }
+rv32i[orn]    = { alu zbb rs1 rs2 rd lor  negb pm_alu }
+rv32i[xnor]   = { alu zbb rs1 rs2 rd lxor negb pm_alu }
+
+# Zbb min/max: the adder computes rs1-rs2 (sub, unsign as for slt[u]); the less-than
+# flag then selects rs1 or rs2.
+rv32i[min]    = { alu zbb rs1 rs2 rd sub        min pm_alu }
+rv32i[minu]   = { alu zbb rs1 rs2 rd sub unsign min pm_alu }
+rv32i[max]    = { alu zbb rs1 rs2 rd sub        max pm_alu }
+rv32i[maxu]   = { alu zbb rs1 rs2 rd sub unsign max pm_alu }
+
+# Zbb rotates use the shared funnel shifter: rol = sll+rot, ror/rori = srl+rot.
+rv32i[rol]    = { alu zbb rs1 rs2    rd sll rot pm_alu }
+rv32i[ror]    = { alu zbb rs1 rs2    rd srl rot pm_alu }
+rv32i[rori]   = { alu zbb rs1 shimm5 rd srl rot pm_alu }
+
+# Zbb single-operand ops share one control bit (unary). They all decode their
+# instruction bits [31:20] as an immediate (imm12, zext.h included) and the ALU
+# picks the operation from that immediate, which already rides in the B operand
+# through every pipe stage. See exu_alu_ctl.sv for the table.
+rv32i[clz]    = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[ctz]    = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[cpop]   = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[sext_b] = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[sext_h] = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[zext_h] = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[orc_b]  = { alu zbb rs1 imm12 rd unary pm_alu }
+rv32i[rev8]   = { alu zbb rs1 imm12 rd unary pm_alu }
+
+# Zbs: bset/bclr/binv are or/andn/xor with a one-hot mask (1 << rs2[4:0]) in the
+# logic unit; bext is a right shift that keeps only bit 0.
+rv32i[bset]   = { alu zbs rs1 rs2    rd lor       onehot pm_alu }
+rv32i[bseti]  = { alu zbs rs1 shimm5 rd lor       onehot pm_alu }
+rv32i[bclr]   = { alu zbs rs1 rs2    rd land negb onehot pm_alu }
+rv32i[bclri]  = { alu zbs rs1 shimm5 rd land negb onehot pm_alu }
+rv32i[binv]   = { alu zbs rs1 rs2    rd lxor      onehot pm_alu }
+rv32i[binvi]  = { alu zbs rs1 shimm5 rd lxor      onehot pm_alu }
+rv32i[bext]   = { alu zbs rs1 rs2    rd srl       bext   pm_alu }
+rv32i[bexti]  = { alu zbs rs1 shimm5 rd srl       bext   pm_alu }
 
 
 rv32i[slt] =     { alu rs1 rs2    rd sub slt        pm_alu }

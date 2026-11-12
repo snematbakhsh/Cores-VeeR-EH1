@@ -28,6 +28,7 @@ module exu_alu_ctl
 
    input logic [31:0] a,                  // A operand
    input logic [31:0] b,                  // B operand
+   input logic [1:0]  a_sh,               // Zba: shift A left by a_sh as it is flopped (packet of the incoming instruction)
    input logic [31:1] pc,                 // for pc=pc+2,4 calculations
 
    input logic valid,                     // Valid
@@ -83,10 +84,20 @@ module exu_alu_ctl
 
    logic                eq, ne, lt, ge;
 
+   logic [31:0]         a_in;
+
 
    rvdffs #(1)  validff (.*, .clk(active_clk), .en(~freeze), .din(valid & ~flush), .dout(valid_ff));
 
-   rvdffe #(32) aff (.*, .en(enable & valid), .din(a[31:0]), .dout(a_ff[31:0]));
+   // Zba (sh1add/sh2add/sh3add): rs1 is shifted on its way into the operand flop. For these
+   // instructions a_ff only feeds the adder, so the shift costs nothing on the EX-stage adder,
+   // branch-compare and flush paths; the select comes from decode, ahead of the operand data.
+   assign a_in[31:0] = ({32{a_sh[1:0] == 2'd0}} &  a[31:0]        ) |
+                       ({32{a_sh[1:0] == 2'd1}} & {a[30:0], 1'b0} ) |
+                       ({32{a_sh[1:0] == 2'd2}} & {a[29:0], 2'b0} ) |
+                       ({32{a_sh[1:0] == 2'd3}} & {a[28:0], 3'b0} );
+
+   rvdffe #(32) aff (.*, .en(enable & valid), .din(a_in[31:0]), .dout(a_ff[31:0]));
 
    rvdffe #(32) bff (.*, .en(enable & valid), .din(b[31:0]), .dout(b_ff[31:0]));
 
@@ -130,6 +141,15 @@ module exu_alu_ctl
    // jal  => rs1=pc {pc[31:1],1'b0},  rs2=sext(offset20:1]);    rd=pc+[2,4]
    // jalr => rs1=rs1, rs2=sext(offset20:1]);                    rd=pc+[2,4]
 
+   // Bit manipulation (Zba/Zbb/Zbs) reuses these units where it can:
+   //   sh1add/sh2add/sh3add  adder, with A pre-shifted (above)
+   //   andn/orn/xnor         logic unit with B inverted (negb)
+   //   bset/bclr/binv        logic unit (or/andn/xor) with B = 1 << b[4:0] (onehot)
+   //   rol/ror/rori          shifter (sll/srl) in rotate mode (rot)
+   //   bext/bexti            shifter (srl), bit 0 only (bext)
+   //   min/max/minu/maxu     adder computes a-b (sub, unsign); lt selects a or b
+   //   unary ops             dedicated logic below (unary)
+
 
    assign bm[31:0] = ( ap.sub ) ? ~b_ff[31:0] : b_ff[31:0];
 
@@ -140,43 +160,133 @@ module exu_alu_ctl
 
    assign ne = ~eq;
 
+
+   // Thermometer code of the shift amount: b_therm[i] = (i >= b_ff[4:0]). It is the mask
+   // for left shifts and, differentiated, the one-hot bit select for bset/bclr/binv.
+   logic [31:0] b_therm, b_onehot, lb;
+
+   assign b_therm[31:0]  = 32'hffffffff << b_ff[4:0];
+   assign b_onehot[31:0] = b_therm[31:0] & ~{b_therm[30:0], 1'b0};
+
+   assign lb[31:0] = ( (ap.onehot) ? b_onehot[31:0] : b_ff[31:0] ) ^ {32{ap.negb}};
+
    assign logic_sel[3] = ap.land | ap.lor;
    assign logic_sel[2] = ap.lor | ap.lxor;
    assign logic_sel[1] = ap.lor | ap.lxor;
 
 
 
-   assign lout[31:0] =  (  a_ff[31:0] &  b_ff[31:0] & {32{logic_sel[3]}} ) |
-                        (  a_ff[31:0] & ~b_ff[31:0] & {32{logic_sel[2]}} ) |
-                        ( ~a_ff[31:0] &  b_ff[31:0] & {32{logic_sel[1]}} );
+   assign lout[31:0] =  (  a_ff[31:0] &  lb[31:0] & {32{logic_sel[3]}} ) |
+                        (  a_ff[31:0] & ~lb[31:0] & {32{logic_sel[2]}} ) |
+                        ( ~a_ff[31:0] &  lb[31:0] & {32{logic_sel[1]}} );
 
 
-
-   // One funnel shifter for sll/srl/sra: {hi[30:0], a} >> amt, low 32 bits.
-   //   srl: hi = 0           sra: hi = {31{a[31]}}
-   //   sll: hi = a[30:0], amt = -b (mod 32), and the low b bits are cleared (b_therm).
-   logic [31:0] b_therm;   // b_therm[i] = (i >= b_ff[4:0])
+   // One funnel shifter for sll/srl/sra/rol/ror/bext: {hi[30:0], a} >> amt, low 32 bits.
+   //   srl: hi = 0           sra: hi = {31{a[31]}}      ror: hi = a[30:0]
+   //   sll/rol: hi = a[30:0], amt = -b (mod 32); sll also clears the low b bits (b_therm).
    logic [4:0]  shamt;
    logic [62:0] sh_in, sh_long;
-
-   assign b_therm[31:0] = 32'hffffffff << b_ff[4:0];
 
    assign shamt[4:0]    = (ap.sll) ? (5'd0 - b_ff[4:0]) : b_ff[4:0];
 
    assign sh_in[31:0]   = a_ff[31:0];
-   assign sh_in[62:32]  = ({31{ap.sll}} & a_ff[30:0]) |
-                          ({31{ap.sra}} & {31{a_ff[31]}});
+   assign sh_in[62:32]  = ({31{ap.sll | ap.rot}} & a_ff[30:0]) |
+                          ({31{ap.sra}}          & {31{a_ff[31]}});
 
    assign sh_long[62:0] = sh_in[62:0] >> shamt[4:0];
 
-   assign sout[31:0]    = sh_long[31:0] & ( b_therm[31:0] | {32{~ap.sll}} );
+   assign sout[31:0]    = sh_long[31:0] & ( b_therm[31:0] | {32{~ap.sll | ap.rot}} );
+
+
+   // ---------------------------------------------------------------------------------------
+   // Zbb unary operations. They decode their instruction bits [31:20] as imm12, so b_ff
+   // holds that immediate in every ALU (primary and secondary) and selects the operation:
+   //
+   //   clz    0x600   ctz    0x601   cpop   0x602   sext.b 0x604   sext.h 0x605
+   //   zext.h 0x080   orc.b  0x287   rev8   0x698
+   // ---------------------------------------------------------------------------------------
+   logic u_clz, u_ctz, u_cpop, u_sextb, u_sexth, u_zexth, u_orcb, u_rev8;
+
+   assign u_clz   = ap.unary & (b_ff[2:0] == 3'b000) & ~b_ff[7];
+   assign u_ctz   = ap.unary & (b_ff[2:0] == 3'b001);
+   assign u_cpop  = ap.unary & (b_ff[2:0] == 3'b010);
+   assign u_sextb = ap.unary & (b_ff[2:0] == 3'b100);
+   assign u_sexth = ap.unary & (b_ff[2:0] == 3'b101);
+   assign u_orcb  = ap.unary & (b_ff[2:0] == 3'b111);
+   assign u_zexth = ap.unary & (b_ff[2:0] == 3'b000) &  b_ff[7] & ~b_ff[4];
+   assign u_rev8  = ap.unary & (b_ff[2:0] == 3'b000) &  b_ff[4];
+
+   // clz/ctz: one leading-zero counter, fed the bit-reversed operand for ctz. Log-depth tree:
+   // each level merges two halves as {zero_hi ? (1, cnt_lo) : (0, cnt_hi)}.
+   logic [31:0]      lz_in;
+   logic [15:0]      lz_z1;   logic [15:0]      lz_c1;
+   logic [7:0]       lz_z2;   logic [7:0][1:0]  lz_c2;
+   logic [3:0]       lz_z3;   logic [3:0][2:0]  lz_c3;
+   logic [1:0]       lz_z4;   logic [1:0][3:0]  lz_c4;
+   logic             lz_z5;   logic [4:0]       lz_c5;
+   logic [5:0]       lz_cnt;
+
+   always_comb begin
+      for (int i=0; i<32; i++) lz_in[i] = (u_clz & a_ff[i]) | (u_ctz & a_ff[31-i]);
+
+      for (int i=0; i<16; i++) begin
+         lz_z1[i] = ~(lz_in[2*i+1] | lz_in[2*i]);
+         lz_c1[i] = ~lz_in[2*i+1];
+      end
+      for (int i=0; i<8; i++) begin
+         lz_z2[i] = lz_z1[2*i+1] & lz_z1[2*i];
+         lz_c2[i] = (lz_z1[2*i+1]) ? {1'b1, lz_c1[2*i]} : {1'b0, lz_c1[2*i+1]};
+      end
+      for (int i=0; i<4; i++) begin
+         lz_z3[i] = lz_z2[2*i+1] & lz_z2[2*i];
+         lz_c3[i] = (lz_z2[2*i+1]) ? {1'b1, lz_c2[2*i]} : {1'b0, lz_c2[2*i+1]};
+      end
+      for (int i=0; i<2; i++) begin
+         lz_z4[i] = lz_z3[2*i+1] & lz_z3[2*i];
+         lz_c4[i] = (lz_z3[2*i+1]) ? {1'b1, lz_c3[2*i]} : {1'b0, lz_c3[2*i+1]};
+      end
+      lz_z5 = lz_z4[1] & lz_z4[0];
+      lz_c5 = (lz_z4[1]) ? {1'b1, lz_c4[0]} : {1'b0, lz_c4[1]};
+      // all zero: 32 (lz_c5 is 31 then)
+      lz_cnt = {lz_z5, lz_c5 & {5{~lz_z5}}};
+   end
+
+   // cpop: balanced adder tree (2-bit, 3-bit, 4-bit, 5-bit, 6-bit sums); synthesis tools turn
+   // it into a carry-save tree. The input is gated with the unary flop bit (one gate level,
+   // not the full sub-op decode) so the tree does not toggle for other instructions.
+   logic [31:0]      pc_in;
+   logic [15:0][1:0] pc_s1;
+   logic [7:0][2:0]  pc_s2;
+   logic [3:0][3:0]  pc_s3;
+   logic [1:0][4:0]  pc_s4;
+   logic [5:0]       pc_cnt;
+
+   always_comb begin
+      pc_in = a_ff[31:0] & {32{ap.unary}};
+      for (int i=0; i<16; i++) pc_s1[i] = {1'b0, pc_in[2*i+1]}  + {1'b0, pc_in[2*i]};
+      for (int i=0; i<8;  i++) pc_s2[i] = {1'b0, pc_s1[2*i+1]}  + {1'b0, pc_s1[2*i]};
+      for (int i=0; i<4;  i++) pc_s3[i] = {1'b0, pc_s2[2*i+1]}  + {1'b0, pc_s2[2*i]};
+      for (int i=0; i<2;  i++) pc_s4[i] = {1'b0, pc_s3[2*i+1]}  + {1'b0, pc_s3[2*i]};
+      pc_cnt = {1'b0, pc_s4[1]} + {1'b0, pc_s4[0]};
+   end
+
+   logic [31:0] unary_out;
+
+   assign unary_out[31:0] = ({32{u_clz | u_ctz}} & {26'b0, lz_cnt[5:0]}                     ) |
+                            ({32{u_cpop}}        & {26'b0, pc_cnt[5:0]}                     ) |
+                            ({32{u_sextb}}       & {{24{a_ff[7]}},  a_ff[7:0]}              ) |
+                            ({32{u_sexth}}       & {{16{a_ff[15]}}, a_ff[15:0]}             ) |
+                            ({32{u_zexth}}       & {16'b0,          a_ff[15:0]}             ) |
+                            ({32{u_orcb}}        & {{8{|a_ff[31:24]}}, {8{|a_ff[23:16]}},
+                                                    {8{|a_ff[15:8]}},  {8{|a_ff[7:0]}}}      ) |
+                            ({32{u_rev8}}        & {a_ff[7:0], a_ff[15:8], a_ff[23:16], a_ff[31:24]});
 
 
    assign sel_logic = |{ap.land,ap.lor,ap.lxor};
 
-   assign sel_shift = |{ap.sll,ap.srl,ap.sra};
+   assign sel_shift = |{ap.sll,ap.srl,ap.sra} & ~ap.bext;
 
-   assign sel_adder = (ap.add | ap.sub) & ~ap.slt;
+   assign sel_adder = (ap.add | ap.sub) & ~ap.slt & ~ap.min & ~ap.max;
 
 
 
@@ -184,7 +294,7 @@ module exu_alu_ctl
    // a < b from the carry out of a + ~b + 1 alone: unsigned, or signed with equal signs,
    // is ~cout; signed with different signs is a[31]. Equivalent to the sum-sign/overflow
    // form, but the adder's sum bit 31 and the overflow logic are no longer on this path
-   // (branches, slt).
+   // (branches, slt, min/max).
    assign lt = (~ap.unsign & (a_ff[31] ^ b_ff[31]) & a_ff[31]) |
                ((ap.unsign | ~(a_ff[31] ^ b_ff[31])) & ~cout);
 
@@ -193,12 +303,21 @@ module exu_alu_ctl
 
    assign slt_one = (ap.slt & lt);
 
+   // min/max: rs1 if (rs1 < rs2) for min, if (rs1 >= rs2) for max
+   logic minmax_a;
+
+   assign minmax_a = lt ^ ap.max;
+
    assign out[31:0] = ({32{sel_logic}} & lout[31:0]) |
                       ({32{sel_shift}} & sout[31:0]) |
                       ({32{sel_adder}} & aout[31:0]) |
                       ({32{ap.jal | pp_ff.pcall | pp_ff.pja | pp_ff.pret}} & {pcout[31:1],1'b0}) |
                       ({32{ap.csr_write}} & ((ap.csr_imm) ? b_ff[31:0] : a_ff[31:0])) |                // csr_write: if csr_imm rs2 else rs1
-                      ({31'b0, slt_one});
+                      ({31'b0, slt_one}) |
+                      ({31'b0, ap.bext & sh_long[0]}) |
+                      ({32{(ap.min | ap.max) &  minmax_a}} & a_ff[31:0]) |
+                      ({32{(ap.min | ap.max) & ~minmax_a}} & b_ff[31:0]) |
+                      unary_out[31:0];
 
    // branch handling
 

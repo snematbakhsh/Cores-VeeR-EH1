@@ -406,6 +406,7 @@ module exu
                           .flush         ( exu_flush_final             ),   // I
                           .a             ( i0_rs1_final_d[31:0]        ),   // I
                           .b             ( i0_rs2_d[31:0]              ),   // I
+                          .a_sh          ( i0_ap.zba_sh                ),   // I
                           .pc            ( dec_i0_pc_d[31:1]           ),   // I
                           .brimm         ( dec_i0_br_immed_d[12:1]     ),   // I
                           .ap            ( i0_ap_e1                    ),   // I
@@ -426,6 +427,7 @@ module exu
                           .flush         ( exu_flush_final             ),   // I
                           .a             ( i1_rs1_d[31:0]              ),   // I
                           .b             ( i1_rs2_d[31:0]              ),   // I
+                          .a_sh          ( i1_ap.zba_sh                ),   // I
                           .pc            ( dec_i1_pc_d[31:1]           ),   // I
                           .brimm         ( dec_i1_br_immed_d[12:1]     ),   // I
                           .ap            ( i1_ap_e1                    ),   // I
@@ -597,6 +599,7 @@ module exu
                           .flush         ( dec_tlu_flush_lower_wb      ),   // I
                           .a             ( i0_rs1_e3_final[31:0]       ),   // I
                           .b             ( i0_rs2_e3_final[31:0]       ),   // I
+                          .a_sh          ( i0_ap_e3.zba_sh             ),   // I
                           .pc            ( dec_i0_pc_e3[31:1]          ),   // I
                           .brimm         ( i0_br_immed_e3[12:1]        ),   // I
                           .ap            ( i0_ap_e4                    ),   // I
@@ -617,6 +620,7 @@ module exu
                           .flush         ( dec_tlu_flush_lower_wb      ),   // I
                           .a             ( i1_rs1_e3_final[31:0]       ),   // I
                           .b             ( i1_rs2_e3_final[31:0]       ),   // I
+                          .a_sh          ( i1_ap_e3.zba_sh             ),   // I
                           .pc            ( dec_i1_pc_e3[31:1]          ),   // I
                           .brimm         ( i1_br_immed_e3[12:1]        ),   // I
                           .ap            ( i1_ap_e4                    ),   // I

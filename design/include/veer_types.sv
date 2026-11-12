@@ -208,6 +208,15 @@ typedef struct packed {
                        logic predict_nt;
                        logic csr_write;
                        logic csr_imm;
+                       // bit manipulation (Zba/Zbb/Zbs), see exu_alu_ctl.sv
+                       logic [1:0] zba_sh;   // sh1add/sh2add/sh3add: rs1 << zba_sh before the operand flop
+                       logic negb;           // logic unit uses ~B: andn, orn, xnor, bclr
+                       logic onehot;         // logic unit uses 1 << B[4:0]: bset, bclr, binv
+                       logic bext;           // with srl: result is bit 0 only
+                       logic rot;            // with sll/srl: rotate left/right
+                       logic min;
+                       logic max;
+                       logic unary;          // clz ctz cpop sext.b sext.h zext.h orc.b rev8 (op from imm12 in B)
                        } alu_pkt_t;
 
 typedef struct packed {
@@ -289,6 +298,19 @@ typedef struct packed {
                        logic fence;
                        logic fence_i;
                        logic pm_alu;
+                       logic zba;
+                       logic zbb;
+                       logic zbs;
+                       logic sh1add;
+                       logic sh2add;
+                       logic sh3add;
+                       logic negb;
+                       logic onehot;
+                       logic bext;
+                       logic rot;
+                       logic min;
+                       logic max;
+                       logic unary;
                        logic legal;
                        } dec_pkt_t;
 
