@@ -56,7 +56,7 @@ module exu_alu_ctl
 
 
    logic        [31:0]  aout,bm;
-   logic                cout,ov,neg;
+   logic                cout;
 
    logic        [3:1]   logic_sel;
 
@@ -78,7 +78,6 @@ module exu_alu_ctl
 
    logic                valid_ff;
 
-   logic [31:0]         ashift;
    logic                cond_mispredict;
    logic                target_mispredict;
 
@@ -137,11 +136,6 @@ module exu_alu_ctl
 
    assign {cout, aout[31:0]} = {1'b0, a_ff[31:0]} + {1'b0, bm[31:0]} + {32'b0, ap.sub};
 
-   assign ov = (~a_ff[31] & ~bm[31] &  aout[31]) |
-               ( a_ff[31] &  bm[31] & ~aout[31] );
-
-   assign neg = aout[31];
-
    assign eq = a_ff[31:0] == b_ff[31:0];
 
    assign ne = ~eq;
@@ -158,11 +152,24 @@ module exu_alu_ctl
 
 
 
-   assign ashift[31:0] = a_ff >>> b_ff[4:0];
+   // One funnel shifter for sll/srl/sra: {hi[30:0], a} >> amt, low 32 bits.
+   //   srl: hi = 0           sra: hi = {31{a[31]}}
+   //   sll: hi = a[30:0], amt = -b (mod 32), and the low b bits are cleared (b_therm).
+   logic [31:0] b_therm;   // b_therm[i] = (i >= b_ff[4:0])
+   logic [4:0]  shamt;
+   logic [62:0] sh_in, sh_long;
 
-   assign sout[31:0] = ( {32{ap.sll}} & (a_ff[31:0] <<  b_ff[4:0]) ) |
-                       ( {32{ap.srl}} & (a_ff[31:0] >>  b_ff[4:0]) ) |
-                       ( {32{ap.sra}} &  ashift[31:0]              );
+   assign b_therm[31:0] = 32'hffffffff << b_ff[4:0];
+
+   assign shamt[4:0]    = (ap.sll) ? (5'd0 - b_ff[4:0]) : b_ff[4:0];
+
+   assign sh_in[31:0]   = a_ff[31:0];
+   assign sh_in[62:32]  = ({31{ap.sll}} & a_ff[30:0]) |
+                          ({31{ap.sra}} & {31{a_ff[31]}});
+
+   assign sh_long[62:0] = sh_in[62:0] >> shamt[4:0];
+
+   assign sout[31:0]    = sh_long[31:0] & ( b_therm[31:0] | {32{~ap.sll}} );
 
 
    assign sel_logic = |{ap.land,ap.lor,ap.lxor};
@@ -174,8 +181,12 @@ module exu_alu_ctl
 
 
 
-   assign lt = (~ap.unsign & (neg ^ ov)) |
-               ( ap.unsign & ~cout);
+   // a < b from the carry out of a + ~b + 1 alone: unsigned, or signed with equal signs,
+   // is ~cout; signed with different signs is a[31]. Equivalent to the sum-sign/overflow
+   // form, but the adder's sum bit 31 and the overflow logic are no longer on this path
+   // (branches, slt).
+   assign lt = (~ap.unsign & (a_ff[31] ^ b_ff[31]) & a_ff[31]) |
+               ((ap.unsign | ~(a_ff[31] ^ b_ff[31])) & ~cout);
 
    assign ge = ~lt;
 
