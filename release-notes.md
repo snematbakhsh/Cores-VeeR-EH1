@@ -15,7 +15,8 @@
   Embench-IoT on the Verilated core, libraries rebuilt per ISA).
 * tools/arch-test: configuration and runner for the RISC-V Architectural Certification Tests
   (riscv-arch-test commit 3d5cc36, Sail 0.16) with B, Zba, Zbb and Zbs enabled. All 160 tests
-  pass; Zifencei and I-fence are excluded, as for the upstream core.
+  pass; Zifencei and I-fence are excluded, as for the upstream core. With the extensions
+  configured out (BITMANIP=0), all 131 tests of the unmodified RV32IMC configuration pass.
 
 ## 1.9
 

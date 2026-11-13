@@ -77,3 +77,6 @@ The expected results come from the Sail RISC-V reference model.
 
 With riscv-arch-test commit `3d5cc36` and Sail 0.16, all 160 tests pass: 3 Zba, 18 Zbb and 8 Zbs tests, and the 131 base-ISA and privileged tests (I, M, Zmmul, Zca, Zicsr, Zicclsm, machine-mode CSRs, exceptions and interrupts).
 Two tests are excluded, as they are for the upstream core: `Zifencei`, because the testbench's instruction memory ignores stores, and `I-fence`, because the decoder treats `fence.tso` as illegal.
+
+`BITMANIP=0 tools/arch-test/run.sh` builds the core with the three extensions configured out and runs riscv-arch-test's unmodified VeeR EH1 configuration (RV32IMC).
+All 131 tests pass, the same base-ISA and privileged tests as above, which covers the shared ALU changes (shifter and less-than compare) independently of the new instructions.

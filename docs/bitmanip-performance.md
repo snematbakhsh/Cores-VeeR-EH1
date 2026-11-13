@@ -111,6 +111,7 @@ These are open-source synthesis estimates; timing closure for a given technology
 | Coverage | Every operation class in all four ALUs (two pipes, primary and secondary) | All hit |
 | Mutation testing | 9 injected RTL bugs | All caught |
 | RISC-V Architectural Certification Tests | riscv-arch-test (ACT4, commit `3d5cc36`) with expected results from the Sail 0.16 reference model configured as RV32IMCB: 160 tests, 29 of them Zba, Zbb and Zbs, the rest the base I, M, C, CSR, exception and interrupt tests. Excluded, as for the upstream core: `Zifencei` and `I-fence` (see `tools/arch-test`) | Pass (160 of 160) |
+| RISC-V Architectural Certification Tests, extensions off | The same run with Zba, Zbb and Zbs configured out, against riscv-arch-test's unmodified VeeR EH1 RV32IMC configuration: the 131 base and privileged tests | Pass (131 of 131) |
 | Upstream regression | `hello_world`, `cmark` and `dhry` variants | Pass, cycle-identical to upstream |
 | Configurations | AXI4, AHB-Lite, Zbb off, Zba and Zbs off, all off | Pass |
 | Benchmarks | All 20 benchmarks, all configurations | Results self-verify |

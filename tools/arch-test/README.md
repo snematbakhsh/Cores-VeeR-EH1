@@ -42,11 +42,24 @@ Requirements:
 
 To test only some extensions, set `EXTENSIONS`, e.g. `EXTENSIONS=Zba,Zbb,Zbs`.
 
+### Extensions configured out
+
+    BITMANIP=0 tools/arch-test/run.sh
+
+builds the core with `-set=bitmanip_zba=0 -set=bitmanip_zbb=0 -set=bitmanip_zbs=0` and tests it
+with riscv-arch-test's unmodified `veer-eh1-rv32imc` configuration. This checks that the core
+is still a compliant RV32IMC core without the extensions, including the ALU changes that are
+shared with the base instructions. The model goes into `model-rv32imc` and the results into
+`results-rv32imc.txt` in the work directory, next to those of the default run.
+
 ## Result
 
 With riscv-arch-test commit `3d5cc36` and Sail 0.16, all 160 tests pass (tests built with
 Clang): 3 Zba, 18 Zbb and 8 Zbs tests, plus the I, M, Zmmul, Zca, Zicsr, Zicclsm, machine-mode
 CSR, exception and interrupt tests.
+
+With `BITMANIP=0`, all 131 tests of the RV32IMC configuration pass: the same list without the
+Zba, Zbb and Zbs tests.
 
 ## Exclusions
 
