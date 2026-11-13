@@ -69,3 +69,11 @@ The signed and unsigned less-than result used by branches, `slt` and `min`/`max`
 - `bitmanip_random` executes a random stream of bit-manipulation, ALU, load, store, multiply and branch instructions and then checks all registers and the data memory.
 
 The script can generate the same tests as Linux user-mode programs (`--target qemu`), which allows cross-checking its reference model against QEMU.
+
+### Architectural tests
+
+`tools/arch-test/run.sh` runs the [RISC-V Architectural Certification Tests](https://github.com/riscv-non-isa/riscv-arch-test) on the Verilated core, with a configuration that declares B, Zba, Zbb and Zbs.
+The expected results come from the Sail RISC-V reference model.
+
+With riscv-arch-test commit `3d5cc36` and Sail 0.16, all 160 tests pass: 3 Zba, 18 Zbb and 8 Zbs tests, and the 131 base-ISA and privileged tests (I, M, Zmmul, Zca, Zicsr, Zicclsm, machine-mode CSRs, exceptions and interrupts).
+Two tests are excluded, as they are for the upstream core: `Zifencei`, because the testbench's instruction memory ignores stores, and `I-fence`, because the decoder treats `fence.tso` as illegal.

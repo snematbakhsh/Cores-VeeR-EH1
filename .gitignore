@@ -48,3 +48,5 @@ tools/codegenerators/AAPGV2/swerv/bin/out*
 tools/codegenerators/AAPGV2/swerv/objdump/out*
 # tools/bench default work directory
 bench-work/
+# tools/arch-test default work directory
+arch-test-work/

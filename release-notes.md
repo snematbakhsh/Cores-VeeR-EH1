@@ -13,6 +13,9 @@
   the decoder equations.
 * tools/bench: the benchmark harness behind docs/bitmanip-performance.md (CoreMark and
   Embench-IoT on the Verilated core, libraries rebuilt per ISA).
+* tools/arch-test: configuration and runner for the RISC-V Architectural Certification Tests
+  (riscv-arch-test commit 3d5cc36, Sail 0.16) with B, Zba, Zbb and Zbs enabled. All 160 tests
+  pass; Zifencei and I-fence are excluded, as for the upstream core.
 
 ## 1.9
 
