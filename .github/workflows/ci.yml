@@ -15,6 +15,10 @@ jobs:
     name: Test-EH1-Regression
     uses: ./.github/workflows/test-eh1-regression.yml
 
+  Test-EH1-Arch:
+    name: Test-EH1-Arch
+    uses: ./.github/workflows/test-eh1-arch.yml
+
   Build-and-deploy-docs:
     name: Build-and-deploy-docs
     permissions:

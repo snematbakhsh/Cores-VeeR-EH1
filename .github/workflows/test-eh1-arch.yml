@@ -1,0 +1,113 @@
+name: EH1 RISC-V architectural tests
+
+on:
+  workflow_call:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  VERILATOR_VERSION: v5.032
+  RISCV_TOOLCHAIN_VERSION: 2026.08.27
+
+jobs:
+  eh1-arch-tests:
+    name: EH1 architectural tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - bitmanip: 1
+            isa: rv32imcb
+            results: results.txt
+          - bitmanip: 0
+            isa: rv32imc
+            results: results-rv32imc.txt
+
+    steps:
+      - name: Setup repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The riscv-arch-test framework reads the core configuration with the udb gem
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Prepare tool directories
+        run: |
+          sudo mkdir -p /opt/verilator /opt/riscv
+          sudo chown -R "$USER:$USER" /opt/verilator /opt/riscv
+
+      - name: Cache Verilator
+        id: verilator-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/verilator
+          key: verilator-${{ runner.os }}-${{ runner.arch }}-${{ env.VERILATOR_VERSION }}
+
+      - name: Build Verilator
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf flex bison help2man libfl-dev
+          git clone --depth 1 --branch "$VERILATOR_VERSION" https://github.com/verilator/verilator.git "$RUNNER_TEMP/verilator"
+          cd "$RUNNER_TEMP/verilator"
+          autoconf
+          ./configure --prefix=/opt/verilator
+          make -j"$(nproc)"
+          make install
+
+      # riscv-arch-test needs GCC 15 or later
+      - name: Cache RISC-V GCC
+        id: gcc-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/riscv
+          key: riscv-gcc-${{ runner.os }}-${{ runner.arch }}-${{ env.RISCV_TOOLCHAIN_VERSION }}
+
+      - name: Install RISC-V GCC
+        if: steps.gcc-cache.outputs.cache-hit != 'true'
+        run: |
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            "https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/${RISCV_TOOLCHAIN_VERSION}/riscv64-elf-ubuntu-24.04-gcc.tar.xz" \
+            | tar -xJ -C /opt/riscv --strip-components=1
+
+      - name: Add tools to PATH
+        run: |
+          echo /opt/verilator/bin >> "$GITHUB_PATH"
+          echo /opt/riscv/bin >> "$GITHUB_PATH"
+
+      - name: Run architectural tests
+        env:
+          BITMANIP: ${{ matrix.bitmanip }}
+        run: |
+          verilator --version
+          riscv64-unknown-elf-gcc --version
+          set -o pipefail
+          tools/arch-test/run.sh | tee run.log
+          grep -q 'RESULT: All [0-9]* tests passed' "arch-test-work/${{ matrix.results }}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-test-${{ matrix.isa }}
+          if-no-files-found: ignore
+          path: |
+            run.log
+            arch-test-work/${{ matrix.results }}
+            arch-test-work/model*/build.log
+            arch-test-work/riscv-arch-test/work/*/summary.log
+            arch-test-work/riscv-arch-test/work/*/logs

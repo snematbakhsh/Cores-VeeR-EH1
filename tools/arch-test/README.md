@@ -61,6 +61,11 @@ CSR, exception and interrupt tests.
 With `BITMANIP=0`, all 131 tests of the RV32IMC configuration pass: the same list without the
 Zba, Zbb and Zbs tests.
 
+## CI
+
+The `Test-EH1-Arch` job of the CI workflow (`.github/workflows/test-eh1-arch.yml`) runs both
+variants, with GCC from the riscv-gnu-toolchain releases.
+
 ## Exclusions
 
 Two tests are skipped by default (`EXCLUDE`), the same two riscv-arch-test's CI skips for the
