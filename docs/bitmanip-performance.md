@@ -72,6 +72,7 @@ Single-layout figures carry each benchmark's layout noise (slre and statemate mo
 - **After:** this core, all code built for `rv32imc_zba_zbb_zbs_zicsr_zifencei`.
 - **Layouts:** both are run with the default function alignment and with `-falign-functions=8` and `=32`, and the three are averaged. This damps code-placement effects on fetch and branch prediction.
 - **Simulator:** Verilator 5.020.
+- **Reproducing:** [`tools/bench/bench.sh`](../tools/bench/README.md) builds the libraries, both cores and every benchmark from source, runs all configurations, and regenerates the results table and chart above.
 
 ## Implementation and Cost
 

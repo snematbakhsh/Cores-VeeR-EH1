@@ -11,6 +11,8 @@
   the regression workflow now fails a test whose log lacks TEST_PASSED.
 * tools/espresso.py: PyEDA-based replacement for the espresso binary when regenerating
   the decoder equations.
+* tools/bench: the benchmark harness behind docs/bitmanip-performance.md (CoreMark and
+  Embench-IoT on the Verilated core, libraries rebuilt per ISA).
 
 ## 1.9
 
