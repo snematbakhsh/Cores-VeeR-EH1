@@ -17,6 +17,8 @@
   (riscv-arch-test commit 3d5cc36, Sail 0.16) with B, Zba, Zbb and Zbs enabled. All 160 tests
   pass; Zifencei and I-fence are excluded, as for the upstream core. With the extensions
   configured out (BITMANIP=0), all 131 tests of the unmodified RV32IMC configuration pass.
+* tools/synth: Yosys script behind the synthesis estimates in docs/bitmanip-performance.md.
+  The ALU also ties off the controls of a configured-out extension itself.
 
 ## 1.9
 

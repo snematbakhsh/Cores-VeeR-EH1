@@ -2,7 +2,7 @@
 
 This fork of VeeR EH1 implements the RISC-V bit-manipulation extensions Zba, Zbb and Zbs (all 29 RV32 instructions, together the B extension) as single-cycle ALU instructions.
 With all code built for them, including libc and the compiler builtins, EH1 runs Embench-IoT and CoreMark in **4.67% fewer cycles** (geometric mean) and with **2.51% smaller code**; SHA-256 is 26.7% faster.
-The longest path through the ALU gets one LUT6 level shorter, and the added logic is about 5.7k NAND2 equivalents.
+The added logic is about 4.4k NAND2 equivalents, and in a LUT6 mapping the ALU's outputs gain no logic levels.
 
 For the instructions, configuration options and design, see the [Bit-Manipulation Extensions](source/bit-manipulation.md) chapter of the documentation.
 
@@ -78,26 +78,34 @@ Single-layout figures carry each benchmark's layout noise (slre and statemate mo
 
 Most of the new instructions reuse existing ALU units: the adder, the logic unit and the shifter.
 The full mapping is in the [documentation chapter](source/bit-manipulation.md).
-Two choices keep the ALU's timing paths short.
+Two choices keep logic off the ALU's timing paths.
 The Zba shift is applied as *rs1* is written into the ALU operand register, so neither the adder nor the branch-resolution path that shares it gains any logic.
-The signed and unsigned less-than result is taken from the adder's carry-out and the operand sign bits, which shortens the branch path compared with the original design.
+The signed and unsigned less-than result is taken from the adder's carry-out and the operand sign bits, which takes the adder's sum and the overflow term off the branch path.
 That rewrite is proven equivalent with a SAT miter.
 
-Synthesis of one ALU instance with Yosys 0.70.
-Depth is in LUT6 levels from a register or input (depth-optimal mapping); area is ABC-mapped gates in NAND2 equivalents.
+Synthesis of one ALU instance and one instruction decoder with Yosys 0.52; [`tools/synth/synth.py`](../tools/synth/README.md) regenerates these tables.
+LUT6 levels are counted from a register or input to the named output, with a depth-oriented mapping.
+Area is the logic mapped to a generic cell set, in NAND2 equivalents, without flip-flops.
 
 | One ALU instance | Upstream | Extensions configured out | This core |
 | --- | ---: | ---: | ---: |
-| Branch redirect `flush_upper` (LUT6 levels) | 13 | 12 | 12 |
-| Branch target `flush_path` | 10 | 9 | 9 |
-| Result and bypass `out` | 11 | 10 | 12 |
-| LUT6 count | 660 | 641 | 920 |
-| Logic area (NAND2 eq) | 2,464 | 2,329 | 3,719 |
+| Branch redirect `flush_upper` (LUT6 levels) | 7 | 7 | 7 |
+| Branch target `flush_path` | 7 | 7 | 7 |
+| Result and bypass `out` | 7 | 7 | 7 |
+| LUT6 count | 605 | 596 | 923 |
+| Logic area (NAND2 eq) | 2,044 | 1,976 | 3,074 |
 
-The worst path through the ALU shortens from 13 to 12 levels. The new results with the longest paths (`min`/`max`, `cpop`) fit within it.
-The extensions add about 1,250 NAND2 equivalents per ALU (four ALUs) and 154 per decoder (two decoders), plus 72 pipeline flip-flops: about 5.7k NAND2 equivalents in all.
-With all three extensions configured out, the ALU has 5% less logic than upstream, because one funnel shifter replaces three shifters.
-These are open-source synthesis estimates; timing closure for a given technology needs a run with its cell library.
+| One instruction decoder | Upstream | This core |
+| --- | ---: | ---: |
+| Deepest output (LUT6 levels) | 4 | 5 |
+| LUT6 count | 108 | 157 |
+| Logic area (NAND2 eq) | 238 | 361 |
+
+The extensions add no LUT levels to the ALU's outputs in this mapping, and one level to the decoder.
+They add about 1,030 NAND2 equivalents per ALU (four ALUs) and 123 per decoder (two decoders), about 4.4k NAND2 equivalents of logic in all, plus 72 pipeline flip-flops.
+With all three extensions configured out, the ALU has 3% less logic than upstream, because one funnel shifter replaces three shifters.
+The decoder is measured on its own, where it is the same for every configuration; the controls of a configured-out extension are tied off at its outputs, so part of its added logic is removed as well.
+These are open-source synthesis estimates for comparing the variants, and LUT levels depend on the mapping recipe; timing closure for a given technology needs a run with its cell library.
 
 ## Verification
 

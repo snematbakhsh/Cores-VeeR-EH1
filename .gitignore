@@ -50,3 +50,5 @@ tools/codegenerators/AAPGV2/swerv/objdump/out*
 bench-work/
 # tools/arch-test default work directory
 arch-test-work/
+# tools/synth default work directory
+synth-work/

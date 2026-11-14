@@ -58,7 +58,7 @@ The extensions are decoded by the generated decoder (`design/dec/decode`) and ex
 The single-operand Zbb instructions (`clz` through `rev8` in the last three rows) share one control bit in the pipeline.
 The decoder treats their instruction bits [31:20] as an immediate, which already travels with the instruction as the second operand, and the ALU selects the operation from it.
 
-The signed and unsigned less-than result used by branches, `slt` and `min`/`max` is computed from the adder's carry-out and the operand sign bits, which shortens the branch-resolution path compared with deriving it from the sum and an overflow term.
+The signed and unsigned less-than result used by branches, `slt` and `min`/`max` is computed from the adder's carry-out and the operand sign bits, which keeps the adder's sum and the overflow term off the branch-resolution path.
 
 ## Tests
 

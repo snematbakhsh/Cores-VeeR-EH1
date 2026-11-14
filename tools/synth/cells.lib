@@ -1,0 +1,26 @@
+/* Generic cell set for area estimates in NAND2 equivalents (synth.py).
+   Areas are relative to NAND2 = 1, with ratios typical of a standard-cell library. */
+library(nand2eq) {
+  cell(BUF)   { area: 1.00; pin(A) { direction: input; }
+                pin(Y) { direction: output; function: "A"; } }
+  cell(INV)   { area: 0.67; pin(A) { direction: input; }
+                pin(Y) { direction: output; function: "A'"; } }
+  cell(NAND2) { area: 1.00; pin(A) { direction: input; } pin(B) { direction: input; }
+                pin(Y) { direction: output; function: "(A*B)'"; } }
+  cell(NOR2)  { area: 1.00; pin(A) { direction: input; } pin(B) { direction: input; }
+                pin(Y) { direction: output; function: "(A+B)'"; } }
+  cell(NAND3) { area: 1.33; pin(A) { direction: input; } pin(B) { direction: input; } pin(C) { direction: input; }
+                pin(Y) { direction: output; function: "(A*B*C)'"; } }
+  cell(NOR3)  { area: 1.33; pin(A) { direction: input; } pin(B) { direction: input; } pin(C) { direction: input; }
+                pin(Y) { direction: output; function: "(A+B+C)'"; } }
+  cell(AOI21) { area: 1.33; pin(A) { direction: input; } pin(B) { direction: input; } pin(C) { direction: input; }
+                pin(Y) { direction: output; function: "((A*B)+C)'"; } }
+  cell(OAI21) { area: 1.33; pin(A) { direction: input; } pin(B) { direction: input; } pin(C) { direction: input; }
+                pin(Y) { direction: output; function: "((A+B)*C)'"; } }
+  cell(XOR2)  { area: 2.00; pin(A) { direction: input; } pin(B) { direction: input; }
+                pin(Y) { direction: output; function: "(A*B')+(A'*B)"; } }
+  cell(XNOR2) { area: 2.00; pin(A) { direction: input; } pin(B) { direction: input; }
+                pin(Y) { direction: output; function: "(A*B)+(A'*B')"; } }
+  cell(MUX2)  { area: 2.33; pin(A) { direction: input; } pin(B) { direction: input; } pin(S) { direction: input; }
+                pin(Y) { direction: output; function: "(A*S')+(B*S)"; } }
+}
