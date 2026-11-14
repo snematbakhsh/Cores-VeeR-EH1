@@ -32,7 +32,7 @@ The build also defines `RV_BITMANIP_ZBA`, `RV_BITMANIP_ZBB` and `RV_BITMANIP_ZBS
 - Zbs (RV\_BITMANIP\_ZBS): 0, 1 (*default 1*)
 
 For example, `veer.config -set=bitmanip_zbb=0` builds a core without Zbb.
-A removed extension's instructions take an illegal-instruction exception and its datapath control signals are tied off, so synthesis removes the corresponding logic.
+A removed extension's instructions take an illegal-instruction exception and its datapath control signals are tied off, in the decoder and again in the ALU where they are used, so synthesis removes the corresponding logic.
 
 ## Compiling for the Extensions
 

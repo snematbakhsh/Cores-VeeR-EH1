@@ -665,7 +665,8 @@ module dec_decode_ctl
 
    // Bit-manipulation extensions that are configured out (veer.config -unset=bitmanip_zba etc.)
    // decode as illegal instructions, and their datapath controls are tied off so synthesis
-   // removes the corresponding ALU logic.
+   // removes the pipeline flops that carry them. exu_alu_ctl ties the same controls off again
+   // at their point of use.
    function automatic dec_pkt_t bitmanip_cfg (input dec_pkt_t p);
       dec_pkt_t q;
       q = p;
